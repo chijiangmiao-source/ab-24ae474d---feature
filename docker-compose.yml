@@ -1,0 +1,29 @@
+# 禁飞标签 OR-Set 回放台
+# 宿主机端口通过 WEB_PORT 环境变量配置（默认 8080）：
+#   WEB_PORT=9000 docker compose up -d web
+services:
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # 自动验收：执行一次后以退出码报告结果（0=通过）
+  #   docker compose up --build --abort-on-container-exit --exit-code-from verify
+  verify:
+    build:
+      context: .
+      target: verify
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      WEB_URL: http://web
+    restart: "no"
