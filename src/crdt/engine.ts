@@ -4,15 +4,20 @@ export interface ReleasedApply {
   msg: Message;
   reason: string;
   effect: string;
+  /** false=暂存队列级联释放；true=本次直接投递的消息本身 */
+  direct: boolean;
 }
 
 export interface DeliverResult {
   action: 'applied' | 'duplicate' | 'buffered';
   reason: string;
   effect: string;
-  /** 本次应用触发暂存队列释放的消息（按释放顺序） */
+  /** 本次应用触发暂存队列释放的消息（按释放顺序，不含直接投递本身） */
   releases: ReleasedApply[];
 }
+
+/** 每发生一次实际应用（直接投递或暂存释放）、状态已变更后回调一次 */
+export type ApplyVisitor = (e: ReleasedApply) => void;
 
 export function parseEventId(id: string): { t: string; n: number } {
   const i = id.lastIndexOf('#');
@@ -110,7 +115,7 @@ export class Replica {
       : `撤销 ${m.zone}：上下文未覆盖现存点，并发新增保留`;
   }
 
-  deliver(m: Message): DeliverResult {
+  deliver(m: Message, visit?: ApplyVisitor): DeliverResult {
     // 幂等：已应用过的事件再次投递不改变状态
     if ((this.vector[m.from] ?? 0) >= m.seq) {
       return {
@@ -137,6 +142,8 @@ export class Replica {
     // 应用并推进版本向量
     const effect = this.apply(m);
     this.vector[m.from] = m.seq;
+    const reason = this.readyReason(m);
+    visit?.({ msg: m, reason, effect, direct: true });
     // 依赖补齐后释放暂存消息（可能级联）
     const releases: ReleasedApply[] = [];
     let progressed = true;
@@ -154,16 +161,35 @@ export class Replica {
           i -= 1;
           const eff = this.apply(p);
           this.vector[p.from] = p.seq;
-          releases.push({
-            msg: p,
-            reason: `暂存解除（由 ${m.id} 的应用触发）：因果依赖已补齐`,
-            effect: eff,
-          });
+          const relReason = `暂存解除（由 ${m.id} 的应用触发）：因果依赖已补齐`;
+          const rel: ReleasedApply = { msg: p, reason: relReason, effect: eff, direct: false };
+          releases.push(rel);
+          visit?.(rel);
           progressed = true;
         }
       }
     }
-    return { action: 'applied', reason: this.readyReason(m), effect, releases };
+    return { action: 'applied', reason, effect, releases };
+  }
+
+  /**
+   * 深拷贝副本：消息对象不可变可共享，点集/暂存/向量独立。
+   * 供压力审计在不同投递分支上复用同一前缀状态。
+   */
+  clone(): Replica {
+    const r = new Replica(this.id, this.terminals);
+    for (const t of this.terminals) r.vector[t] = this.vector[t] ?? 0;
+    for (const [zone, adds] of this.live) {
+      r.live.set(zone, new Map(adds));
+    }
+    r.pendingList.push(...this.pendingList);
+    return r;
+  }
+
+  /** 该区域当前是否在本机有效（存活点集非空） */
+  hasZone(zone: string): boolean {
+    const z = this.live.get(zone);
+    return z !== undefined && z.size > 0;
   }
 
   /** 当前可视状态快照 */

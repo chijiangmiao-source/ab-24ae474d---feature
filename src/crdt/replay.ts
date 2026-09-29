@@ -87,6 +87,7 @@ export function runReplay(raw: unknown): ReplayResult {
       from: m.from,
       seq: m.seq,
       ctx: m.ctx,
+      zone: m.kind === 'add' ? m.tag.zone : m.zone,
       label:
         m.kind === 'add'
           ? `新增 ${m.tag.zone}（点 ${m.dot}）`

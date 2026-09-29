@@ -90,8 +90,63 @@ export interface MessageSummary {
   from: string;
   seq: number;
   label: string;
+  /** 消息涉及的航线区域（add=tag.zone，remove=zone），用于审计选区 */
+  zone: string;
   ctx: Vector;
 }
+
+/* ===================== 延迟传播压力审计 ===================== */
+
+/** 一个计步事件后，目标区域相对上一事件的分歧变化 */
+export type DivergenceChange = 'created' | 'resolved' | 'persisted' | 'none';
+
+/** 审计逐步事件：直接投递（应用/暂存）或暂存后的级联释放，每一次都计一步 */
+export interface AuditStep {
+  index: number; // 全局事件序号，从 1 开始（含级联释放）
+  terminal: string; // 该事件发生的终端
+  planIndex: number; // 该终端投递方案中的序号（释放事件沿用触发它的投递序号）
+  messageId: string;
+  kind: 'add' | 'remove';
+  action: 'applied' | 'buffered' | 'released';
+  reason: string; // 因果依据
+  effect: string; // 状态影响
+  divergent: boolean; // 本事件之后目标区域是否处于有效性分歧
+  change: DivergenceChange;
+  /** 各参与终端在本事件后对目标区域是否有效 */
+  zoneEffective: Record<string, boolean>;
+  stateAfter: Record<string, TerminalView>; // 全参与终端快照
+}
+
+/** 稳定裁决出的完整投递方案：每台参与终端的消息投递序列（每消息恰好一次） */
+export interface AuditPlan {
+  terminal: string;
+  order: string[];
+}
+
+export interface AuditStats {
+  rawTraceStates: number; // 单终端朴素轨迹状态数（副本状态 × 已投递掩码去重后）
+  quotientClasses: number; // 行为等价商化后的商类数
+  mergedStates: number; // 被等价合并的朴素状态数
+  productStates: number; // 乘积 DP 访问的组合状态数
+  productTransitions: number; // 乘积 DP 扩展的突发转移数
+}
+
+export type AuditResult =
+  | { ok: false; requestType: 'audit'; errors: ValidationError[] }
+  | {
+      ok: true;
+      requestType: 'audit';
+      zone: string;
+      terminals: string[]; // 参与审计的终端（按标识稳定排序）
+      messageCount: number; // 源消息总数
+      divergenceSteps: number; // 最大分歧持续事件步数
+      eventCount: number; // 完整方案的总事件步数（直接投递 + 级联释放）
+      plans: AuditPlan[];
+      steps: AuditStep[];
+      messages: Record<string, MessageSummary>;
+      stats: AuditStats;
+      detail: string;
+    };
 
 export type ReplayResult =
   | { ok: false; errors: ValidationError[] }
