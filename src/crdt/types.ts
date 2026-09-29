@@ -105,3 +105,74 @@ export type ReplayResult =
       finalZones: string[];
       convergenceDetail: string;
     };
+
+// ---- 延迟传播压力审计 ----
+
+/** 审计轨迹中单台终端的快照 */
+export interface AuditTerminalSnapshot {
+  terminal: string;
+  vector: Vector;
+  /** 全部有效标签（observed-remove 归并结果） */
+  zones: ZoneView[];
+  /** 目标航线区域当前是否有效（存在存活点） */
+  zoneValid: boolean;
+  /** 目标区域存活点（点标识 -> 支撑事件） */
+  zoneDots: ZoneDotView[];
+  /** 暂存队列（缺因果前序、已投递但尚未应用的消息） */
+  pending: string[];
+  /** 已向该终端投递的消息条数（审计中每条恰好一次） */
+  delivered: number;
+}
+
+/** 一次投递触发的暂存释放（级联中的一条） */
+export interface AuditReleaseInfo {
+  messageId: string;
+  kind: 'add' | 'remove';
+  reason: string;
+  effect: string;
+}
+
+export type DivergenceChange = 'created' | 'resolved' | 'none';
+
+/** 审计最优方案中的一次投递（每台终端 × 每条源消息恰好一条） */
+export interface AuditStep {
+  index: number;
+  terminal: string;
+  messageId: string;
+  kind: 'add' | 'remove';
+  action: StepAction; // 审计方案内无重复投递：仅 applied / buffered（释放见 releases）
+  reason: string;
+  effect: string;
+  /** 本次应用补齐依赖后级联释放的暂存消息（按释放顺序） */
+  releases: AuditReleaseInfo[];
+  stateAfter: Record<string, AuditTerminalSnapshot>;
+  /** 本次投递（含级联释放）后目标区域是否处于有效性分歧 */
+  divergent: boolean;
+  /** 本次投递是造成分歧、消除分歧还是维持现状 */
+  divergenceChange: DivergenceChange;
+}
+
+export interface AuditStats {
+  /** 搜索中求值的不同等价状态数 */
+  statesEvaluated: number;
+  /** 命中等价状态剪枝的次数 */
+  memoHits: number;
+}
+
+export type AuditResult =
+  | { ok: false; errors: ValidationError[] }
+  | {
+      ok: true;
+      terminals: string[]; // 实际参与审计的终端（按标识稳定排序）
+      zone: string;
+      messages: MessageSummary[]; // 全部源消息（按消息标识稳定排序）
+      steps: AuditStep[]; // 最优完整投递方案的逐步轨迹
+      divergenceSteps: number; // 目标：分歧持续的投递步数
+      totalDeliveries: number; // = 终端数 × 源消息数
+      /** 从全局方案派生的各终端收件序列（不改动原 inbox） */
+      terminalPlans: Record<string, string[]>;
+      finalValid: Record<string, boolean>;
+      converged: boolean;
+      tieBreakRule: string;
+      stats: AuditStats;
+    };

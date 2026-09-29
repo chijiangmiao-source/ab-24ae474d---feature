@@ -193,6 +193,12 @@ main {
   color: var(--bad);
 }
 
+.banner.warn {
+  border-color: var(--warn);
+  background: rgba(210, 153, 34, 0.1);
+  color: var(--warn);
+}
+
 .controls {
   display: flex;
   align-items: center;
@@ -474,3 +480,186 @@ main {
     position: static;
   }
 }
+
+/* ---- 延迟传播压力审计 ---- */
+.audit {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audit h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.audit-intro {
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.audit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+.audit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.audit-field-label {
+  white-space: nowrap;
+}
+
+.audit-field select {
+  background: #0d1117;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+}
+
+button.chip.toggle {
+  border-radius: 14px;
+  padding: 2px 10px;
+}
+
+button.chip.toggle.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.chip.toggle.disabled {
+  opacity: 0.4;
+}
+
+.audit-errors {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.audit-errors li {
+  font-size: 12px;
+  margin: 2px 0;
+}
+
+.current.diverge {
+  border-left-color: var(--bad);
+}
+
+.current.align {
+  border-left-color: var(--ok);
+}
+
+.badge.change-created {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.badge.change-resolved {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge.change-none {
+  color: var(--dim);
+  border-color: var(--dim);
+}
+
+.audit-panels {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.audit-replica {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.audit-replica.is-divergent {
+  border-color: var(--bad);
+  box-shadow: inset 0 0 0 1px rgba(248, 81, 73, 0.25);
+}
+
+.audit-replica-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.badge.zone-valid {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.badge.zone-invalid {
+  color: var(--dim);
+  border-color: var(--dim);
+}
+
+.audit-replica .panel {
+  border: none;
+  padding: 4px 2px;
+}
+
+.audit-replica .panel h3 {
+  display: none;
+}
+
+.audit-plans summary {
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.audit-plans ul {
+  margin: 8px 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.audit-plans .tie {
+  margin: 4px 0 0;
+}
+
+.audit-log .val-cell {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.step-row.created {
+  box-shadow: inset 3px 0 0 var(--bad);
+}
+
+.step-row.resolved {
+  box-shadow: inset 3px 0 0 var(--ok);
+}
+
+.cur-effect.release {
+  color: var(--released);
+  padding-left: 12px;
+}
+
